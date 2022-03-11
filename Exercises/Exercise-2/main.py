@@ -1,6 +1,6 @@
-import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+import pandas as pd # importing the pandas package 
+import requests # request package to use to make http requests; 
+from bs4 import BeautifulSoup # importing beautiful soup package html parser; 
 
 # I will be coming back to put some parts of the code into functions, and capturing all files 
 # with the target timestamp. Next, I will concantenate all and put them into one data frame and csv file; 
@@ -27,9 +27,7 @@ def getData(url):
             # variable to hold our rows; 
             rows = table.find_all('tr');
 
-
             myList=[]; 
-
             # user can input this value at the beginning of the program; 
             myFilter = ['2022-02-07 14:03'];
 
@@ -100,15 +98,14 @@ def getData(url):
 
             print(dataFrame);
 
+        elif r.status_code == 400:
 
-
-
+            print('Unsuccessful connection'); 
 
 def main(): 
 
     getData(baseURL)
     pass
-
 
 if __name__ == '__main__':
     main()
