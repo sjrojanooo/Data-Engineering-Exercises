@@ -1,7 +1,11 @@
-from dotenv import dotenv_values, load_dotenv
-import boto3
-from botocore.exceptions import ClientError
-import gzip
+from xmlrpc.client import gzip_decode
+import boto3;
+from botocore.exceptions import ClientError;
+from dotenv import dotenv_values, load_dotenv;
+import gzip;
+import io; 
+import os; 
+import sys; 
 
 # setting my config variable to hidden variables in .env file
 config = {**dotenv_values('.env')}; 
@@ -21,32 +25,46 @@ s3 = boto3.client('s3',
 );
 
 
+def getBucketObject(bucketName, prefixKey):
+    result = s3.get_object(Bucket=bucketName, Key=prefixKey);
+
+    return result;
+
+
 # method that will return the first item key from the results returned 
 def getTargetS3Keys(bucketName, prefixKey):
 
-    # empty list to append the the keys in the returned object
-    keys = []; 
-
     # getting the list of objects from the method 
     # parameters are the bucket name and prefix key from above; 
-    result = s3.list_objects_v2(Bucket=bucketName, Prefix=prefixKey);
+    result = getBucketObject(bucketName,prefixKey);
 
-    # iteration over the returned results and appending each key items to my empty list; 
-    for obj in result['Contents']:
+    lines = [];
 
-        keys.append(obj['Key'])
+    with gzip.open(result['Body'], 'rt') as gf:
 
-        # returning the first key element from the method; 
-        return keys[0]
+        for line in gf:
+            lines.append(line);
+
+    fileName = lines[0].strip().split('/')[2:6];
+    fileName = '/'.join(fileName);
+
+    targetFile = getBucketObject(bucketName,lines[0].strip());
+
+    file_content = None; 
+
+    with gzip.open(targetFile['Body'], mode="rt") as f:
+        file_content = f.read()
+
+
+    return file_content
 
 def main():
 
     try:
 
-        file = getTargetS3Keys(BUCKET_NAME,PREFIX_KEY)
+        file = getTargetS3Keys(BUCKET_NAME,PREFIX_KEY);
 
         print(file)
-
 
     except ClientError as e:
 
@@ -55,7 +73,6 @@ def main():
 
         else: 
             raise
-
 
     pass
 
