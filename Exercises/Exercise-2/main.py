@@ -9,6 +9,38 @@ from bs4 import BeautifulSoup # importing beautiful soup package html parser;
 # base url endpoint that we are targetting;
 baseURL = 'https://www.ncei.noaa.gov/data/local-climatological-data/access/2021/';
 
+
+# function that will create the data frame; 
+def createDataFrame(csvFile, column, fileName):
+
+            dataFrame = pd.read_csv(csvFile)
+
+            # obtaining the list of columns from the obtained information;
+            print(dataFrame.columns)
+            # printing the data types that I am dealing with; 
+            print(dataFrame.info())
+
+
+            # sorting all column in descending order; 
+            dataFrame = dataFrame.sort_values(column, ascending=False);
+
+            # printing all unique values for HourlyDryBulbTemperature; 
+            print(dataFrame[column].unique());
+
+            # moving the column into the 1st position for easy observation; 
+            third_column = dataFrame.pop(column);
+
+            dataFrame.insert(2, column, third_column);
+
+            # Setting the data frame equal to HourlyDryBulbTemperature that is greater or equal than 40
+            dataFrame = dataFrame.loc[dataFrame[column] >= 40]
+
+            # writing out the data frame to the downloads directory; 
+            dataFrame.to_csv(f'./downloads/{fileName}.csv', index=False); 
+
+            print(dataFrame);
+
+
 def getData(url):
 
     with requests.get(url) as r:
@@ -70,33 +102,11 @@ def getData(url):
 
                     csvLink.append(fileLink)
 
-            
-            dataFrame = pd.read_csv(csvLink[0])
 
-            # obtaining the list of columns from the obtained information;
-            print(dataFrame.columns)
-            # printing the data types that I am dealing with; 
-            print(dataFrame.info())
-
-
-            # sorting all column in descending order; 
-            dataFrame = dataFrame.sort_values('HourlyDryBulbTemperature', ascending=False);
-
-            # printing all unique values for HourlyDryBulbTemperature; 
-            print(dataFrame['HourlyDryBulbTemperature'].unique());
-
-            # moving the column into the 1st position for easy observation; 
-            third_column = dataFrame.pop('HourlyDryBulbTemperature');
-
-            dataFrame.insert(2, 'HourlyDryBulbTemperature', third_column);
-
-            # Setting the data frame equal to HourlyDryBulbTemperature that is greater or equal than 40
-            dataFrame = dataFrame.loc[dataFrame['HourlyDryBulbTemperature'] >= 40]
-
-            # writing out the data frame to the downloads directory; 
-            dataFrame.to_csv('./downloads/station-dry-bulb-temp.csv', index=False); 
-
-            print(dataFrame);
+            # Calling custom function from above; 
+            # three parameters are the csv file link, column that will provide the data for records with highest temp, 
+            # and the name of the file; 
+            createDataFrame(csvLink[0], 'HourlyDryBulbTemperature', 'station-dry-bulb-temp')
 
         elif r.status_code == 400:
 
