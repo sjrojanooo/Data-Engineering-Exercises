@@ -48,7 +48,7 @@ def printContent(targetFile):
 
     return file_content; 
 
-# method that will return the first item key from the results returned 
+
 def getTargetS3Keys(bucketName, prefixKey):
 
     # getting the list of objects from the method 
@@ -59,7 +59,7 @@ def getTargetS3Keys(bucketName, prefixKey):
 def main():
 
     try:
-
+        
         file = getTargetS3Keys(BUCKET_NAME,PREFIX_KEY);
 
         print(file)
