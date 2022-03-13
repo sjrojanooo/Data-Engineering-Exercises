@@ -13,7 +13,6 @@ def handleJsonFiles(jsonFile, columnLong, columnLang, columnCoord):
         data = pd.json_normalize(data); 
 
         # split the geolocation columns nested list into two separate columns
-
         data[columnLong],data[columnLang] = map(list, zip(*data[columnCoord])); 
 
         data = data.drop(columns=columnCoord)
@@ -22,10 +21,9 @@ def handleJsonFiles(jsonFile, columnLong, columnLang, columnCoord):
 
         csvFileName = filteredList[0]
 
-        data.to_csv(f'./csvData/{csvFileName}.csv', index=False)
+        data.to_csv(f'./data/csvData/{csvFileName}.csv', index=False)
 
         print(data)
-
 
 def main():
 
@@ -38,7 +36,7 @@ def main():
         # iteration over all the filenames in the projects directory; 
         for f in file_names:
 
-            # fileName is equalt to the complete address to each file; 
+            # fileName is equal to the complete address to each file; 
             fileName = os.path.join(root, f);
 
             # conditional statements that will find all files that end with the json extension; 
@@ -48,6 +46,7 @@ def main():
 
             else: 
                 print('not a json')
+
 
 if __name__ == '__main__':
     main()
