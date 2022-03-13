@@ -2,7 +2,29 @@ from fileinput import filename
 import pandas as pd; 
 import os;
 import json; 
-import re; 
+
+# method to handle Json files and write them to the csvData Directory;
+def handleJsonFiles(jsonFile, columnLong, columnLang, columnCoord):
+
+    with open(jsonFile) as jsonObj:
+
+        data = json.load(jsonObj)
+
+        data = pd.json_normalize(data); 
+
+        # split the geolocation columns nested list into two separate columns
+
+        data[columnLong],data[columnLang] = map(list, zip(*data[columnCoord])); 
+
+        data = data.drop(columns=columnCoord)
+
+        filteredList = [x for x in jsonFile.split('/') if (any(file in x for file in ['json']))]
+
+        csvFileName = filteredList[0]
+
+        data.to_csv(f'./csvData/{csvFileName}.csv', index=False)
+
+        print(data)
 
 
 def main():
@@ -22,24 +44,7 @@ def main():
             # conditional statements that will find all files that end with the json extension; 
             if fileName.endswith('.json'):
 
-                with open(fileName) as jsonFile:
-
-                    data = json.load(jsonFile);
-
-                    data = pd.json_normalize(data);
-
-                    # split the geolocation columns nested list into two separate columns
-
-                    data['geolocation.lon'], data['geolocation.lat'] = map(list, zip(*data['geolocation.coordinates']));
-
-                    data = data.drop(columns='geolocation.coordinates');
-
-                    filteredList = [x for x in fileName.split('/') if any(file in x for file in ['json'])]
-
-                    csvFileName = filteredList[0]
-                    data.to_csv(f'./csvData/{csvFileName}.csv', index=False)
-
-                    print(data)
+                handleJsonFiles(fileName, 'geolocation.lon', 'geolocation.lat', 'geolocation.coordinates')
 
             else: 
                 print('not a json')
