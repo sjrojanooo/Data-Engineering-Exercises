@@ -9,7 +9,7 @@ config = {**dotenv_values('.env')};
 # bucket name for s3 bucket;
 BUCKET_NAME="commoncrawl";
 # prefix key that we want from inside the bucket; 
-KEY="crawl-data/CC-MAIN-2022-05/wet.paths.gz"; 
+PREFIX_KEY="crawl-data/CC-MAIN-2022-05/wet.paths.gz"; 
 
 # setting up the boto3 client with my aws secret keys; 
 # region name is important if you are quering s3 buckets in different regions; 
@@ -21,30 +21,29 @@ s3 = boto3.client('s3',
 );
 
 
-# function that will return the first item key from the results returned 
+# method that will return the first item key from the results returned 
 def getTargetS3Keys(bucketName, prefixKey):
-    
-    """
-        Get list of keys and return the first element 
-        in the array 
-    """
 
+    # empty list to append the the keys in the returned object
     keys = []; 
 
+    # getting the list of objects from the method 
+    # parameters are the bucket name and prefix key from above; 
     result = s3.list_objects_v2(Bucket=bucketName, Prefix=prefixKey);
 
+    # iteration over the returned results and appending each key items to my empty list; 
     for obj in result['Contents']:
 
         keys.append(obj['Key'])
 
+        # returning the first key element from the method; 
         return keys[0]
-
 
 def main():
 
     try:
 
-        file = getTargetS3Keys(BUCKET_NAME,KEY)
+        file = getTargetS3Keys(BUCKET_NAME,PREFIX_KEY)
 
         print(file)
 
