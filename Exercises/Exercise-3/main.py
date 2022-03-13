@@ -1,11 +1,8 @@
-from xmlrpc.client import gzip_decode
-import boto3;
-from botocore.exceptions import ClientError;
-from dotenv import dotenv_values, load_dotenv;
-import gzip;
-import io; 
-import os; 
-import sys; 
+import boto3; # importing AWS SDK to enable the S3 service; 
+from botocore.exceptions import ClientError; # importing the boto3 service exception ClientError to catch general exceptions;
+from dotenv import dotenv_values; # enabling advanced configuration management by loading .env variables in a dict format; 
+import gzip; # gzip provides a simple interface to compress and decompress .gz files; 
+
 
 # setting my config variable to hidden variables in .env file
 config = {**dotenv_values('.env')}; 
@@ -25,39 +22,40 @@ s3 = boto3.client('s3',
 );
 
 
+# request to fetch the object by bucket name and key with boto clend 
 def getBucketObject(bucketName, prefixKey):
     result = s3.get_object(Bucket=bucketName, Key=prefixKey);
 
     return result;
 
+# initial request to common crawl archive
+# method will return the first 
+def captureSegmentTarget(result):
+    segment = []; 
+
+    with gzip.open(result['Body'], 'rt') as gf:
+        for segments in gf:
+            segment.append(segments)
+
+    return segment[0].strip(); 
+
+# Printing content from segment file target. 
+def printContent(targetFile):
+    file_content = None;
+
+    with gzip.open(targetFile['Body'], mode='rt') as f:
+        file_content = f.read();
+
+    return file_content; 
 
 # method that will return the first item key from the results returned 
 def getTargetS3Keys(bucketName, prefixKey):
 
     # getting the list of objects from the method 
     # parameters are the bucket name and prefix key from above; 
-    result = getBucketObject(bucketName,prefixKey);
+    return printContent(targetFile = getBucketObject(bucketName,captureSegmentTarget(result = getBucketObject(bucketName,prefixKey))))
 
-    lines = [];
-
-    with gzip.open(result['Body'], 'rt') as gf:
-
-        for line in gf:
-            lines.append(line);
-
-    fileName = lines[0].strip().split('/')[2:6];
-    fileName = '/'.join(fileName);
-
-    targetFile = getBucketObject(bucketName,lines[0].strip());
-
-    file_content = None; 
-
-    with gzip.open(targetFile['Body'], mode="rt") as f:
-        file_content = f.read()
-
-
-    return file_content
-
+# main method that take in the parameters; 
 def main():
 
     try:
