@@ -5,16 +5,17 @@ from dotenv import dotenv_values;
 config = {**dotenv_values('.env')}
 
 def main():
-
     # connection to postgres database 
-    host=config['POSTGRES_HOST']
-    database=config['POSTGRES_DB']
-    user=config['POSTGRES_USER']
-    pas=config['POSTGRES_PASSWORD']
+    host=config['DATABASE_HOST']
+    database=config['DATABASE_NAME']
+    user=config['DATABASE_USERNAME']
+    pas=config['DATABASE_PASSWORD']
     conn = psycopg2.connect(host=host, database=database, user=user, password=pas)
 
     # cursor will be used to create tables; 
     cursor = conn.cursor()
+
+    print(cursor)
 
     # accounts data;
     accountsDf = pd.read_csv('./data/accounts.csv', index_col='customer_id');
