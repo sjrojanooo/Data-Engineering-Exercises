@@ -10,7 +10,16 @@ def main():
     database=config['DATABASE_NAME']
     user=config['DATABASE_USERNAME']
     pas=config['DATABASE_PASSWORD']
-    conn = psycopg2.connect(host=host, database=database, user=user, password=pas)
+    port=config['DATABASE_PORT']
+    conn = psycopg2.connect(
+        host=host, 
+        database=database, 
+        user=user, 
+        password=pas,
+        port=port
+        )
+
+    conn.autocommit = True;
 
     # cursor will be used to create tables; 
     cursor = conn.cursor()
@@ -18,13 +27,13 @@ def main():
     print(cursor)
 
     # accounts data;
-    accountsDf = pd.read_csv('./data/accounts.csv', index_col='customer_id');
+    accountsDf = pd.read_csv('./data/accounts.csv');
 
     # products data;
-    productsDf = pd.read_csv('./data/products.csv', index_col='product_id');
+    productsDf = pd.read_csv('./data/products.csv');
  
      # products data;
-    transactionsDf = pd.read_csv('./data/transactions.csv', index_col='transaction_id');
+    transactionsDf = pd.read_csv('./data/transactions.csv');
 
     print('account column names')
     print('---------------------') 
@@ -63,15 +72,26 @@ def main():
     ) """
 
     transactionTable = """CREATE TABLE transaction(
-        transaction_id VARCHAR(200), 
+        transaction_id VARCHAR(150), 
         transaction_date DATE,
         product_id INTEGER, 
         product_code INTEGER,
         product_description VARCHAR(150), 
         quantity INTEGER , 
         account_id INTEGER,
-        PRIMARY KEY(transactio_id)
+        PRIMARY KEY(transactio_id),
+        FOREIGN KEY(product_id) REFERENCES products (product_id),
+        FOREIGN KEY(account_id) REFERENCES accounts (customer_id)
     ) """
+
+
+
+    cursor.execute(accountsTable)
+    cursor.execute(productsTable)
+    cursor.execute(transactionTable)
+    
+    conn.commit()
+    conn.close()
 
 
 if __name__ == '__main__':
