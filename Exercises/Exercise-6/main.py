@@ -1,3 +1,4 @@
+from numpy import dtype
 from pyspark.sql import SparkSession;
 import pandas as pd; 
 import zipfile; 
@@ -29,16 +30,16 @@ def main():
 
     zipResponse = walkDataDir(os.path.abspath(''))    
 
-    zip_file = zipfile.ZipFile(zipResponse[0])
+    zip_file = zipfile.ZipFile(zipResponse[1])
 
-    print(zip_file.namelist()[0])
+    q19 = pd.read_csv(zip_file.open(zip_file.namelist()[0]), parse_dates=True)
 
-    df = pd.read_csv(zip_file.open(zip_file.namelist()[0]))
+    q19['start_time'] = pd.to_datetime(q19['start_time']).dt.strftime('%m/%d/%Y')
 
-    print(df)
+    q19['end_time'] = pd.to_datetime(q19['end_time']).dt.strftime('%m/%d/%Y')
 
     
- 
+
     pass
 if __name__ == '__main__':
     main()
