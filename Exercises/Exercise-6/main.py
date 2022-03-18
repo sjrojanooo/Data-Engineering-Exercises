@@ -124,7 +124,6 @@ def main():
         most_popular_station=('trip_id','count')
     ).sort_values(['start_time','most_popular_station']).groupby('start_time').tail(3);
 
-    print(dailyPopularity)
     #ENDS DAILY POPULARITY
 
 
@@ -150,14 +149,20 @@ def main():
             ).drop(columns=['tripduration']);
 
     # have to keep an eye out for the age group riding these bikes. 
-    longestTrips = tripByAge.copy().head(10).sort_values('avg_tripduration_by_age', ascending=False);
+    longestTrips = tripByAge.copy().head(10).sort_values(
+        'avg_tripduration_by_age', ascending=False).applymap(str).assign(
+            avg_tripduration_by_age= lambda newForm: (newForm['avg_tripduration_by_age'].str.replace(r'.',':', regex=True))
+            );
 
-    shortestTrips = tripByAge.copy().tail(10).sort_values('avg_tripduration_by_age');
+    shortestTrips = tripByAge.copy().tail(10).sort_values(
+        'avg_tripduration_by_age').applymap(str).assign(
+            avg_tripduration_by_age= lambda newForm: (newForm['avg_tripduration_by_age'].str.replace(r'.',':', regex=True))
+            );
 
     print(longestTrips); 
 
     print(shortestTrips); 
-    # END OF LONGEST/SHORTEST TRIPS BY AGE GROUP; 
+    # ENDS LONGEST/SHORTEST TRIPS BY AGE GROUP; 
 
     pass
 if __name__ == '__main__':
