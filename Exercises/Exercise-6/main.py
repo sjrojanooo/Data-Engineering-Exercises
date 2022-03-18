@@ -43,11 +43,6 @@ def main():
 
     q19 = q19.sort_values(['start_time', 'tripduration'], ascending=True); 
 
-    # formatting the start and end time columns as mm/dd/yyyy format; 
-    q19['start_time'] = pd.to_datetime(q19['start_time']).dt.strftime('%m/%d/%Y');
-
-    q19['end_time'] = pd.to_datetime(q19['end_time']).dt.strftime('%m/%d/%Y');
-
     # getting the data types that are in the csv file; 
     print(q19.dtypes)
 
@@ -67,6 +62,11 @@ def main():
 
     # most popular trips for each month; 
     stationPopularity = q19.copy()
+
+    # formatting the start and end time columns as mm/dd/yyyy format; 
+    stationPopularity['start_time'] = pd.to_datetime(stationPopularity['start_time']).dt.strftime('%m/%d/%Y');
+
+    stationPopularity['end_time'] = pd.to_datetime(stationPopularity['end_time']).dt.strftime('%m/%d/%Y');
 
     stationPopularity['month'] = pd.to_datetime(stationPopularity['start_time']).dt.month_name()
 
@@ -88,6 +88,11 @@ def main():
     # What were the top 3 trip stations each day for the last two weeks?
     dailyPopularity = stationPopularity.copy()
 
+    # formatting the start and end time columns as mm/dd/yyyy format; 
+    dailyPopularity['start_time'] = pd.to_datetime(dailyPopularity['start_time']).dt.strftime('%m/%d/%Y');
+
+    dailyPopularity['end_time'] = pd.to_datetime(dailyPopularity['end_time']).dt.strftime('%m/%d/%Y');
+
     maxDate= pd.to_datetime(pd.Timestamp(dailyPopularity['start_time'].max()) - pd.Timedelta("14 day")).strftime('%m/%d/%Y')
 
     dailyPopularity = dailyPopularity.loc[dailyPopularity['start_time'] >= maxDate]
@@ -96,18 +101,22 @@ def main():
     
     dailyPopularity = dailyPopularity[['start_time',
     'day_of_week','from_station_name','trip_id']].groupby(['start_time',
-    'from_station_name','day_of_week']).agg(
+    'from_station_name','day_of_week'], as_index=False).agg(
         most_popular_day=('trip_id','count')
-    )
+    ).sort_values(['start_time','most_popular_day']).groupby('start_time').tail(3)
 
-    dailyPopularity.to_csv('file-check.csv'); 
 
-    # .apply(lambda x: x.nlargest(21)).sort_values(['start_time',
-    # 'day_of_week']).reset_index()
+    # Gender statistics; 
+    genderStats = q19.copy(); 
 
+    genderStats = genderStats.loc[((genderStats['gender'] != '') & (genderStats['birthyear'] != ''))]
+
+    # dataframe for trips length; 
+    tripLength = genderStats.copy().assign(avg_trip_length = lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(5))
+
+    tripLength = tripLength[['gender','avg_trip_length']].groupby('gender', as_index=False).mean().round(2)
 
     print(dailyPopularity)
-
 
     pass
 if __name__ == '__main__':
