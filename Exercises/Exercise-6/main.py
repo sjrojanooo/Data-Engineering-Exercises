@@ -1,13 +1,9 @@
-from audioop import avg
 from datetime import datetime
-from numpy import dtype
 from pyspark.sql import SparkSession;
 import pandas as pd; 
 import numpy as np; 
 import zipfile; 
 import os; 
-import heapq; 
-import glob; 
 
 
 # method to walk the data directory and return the path endpoint to each zip file; 
