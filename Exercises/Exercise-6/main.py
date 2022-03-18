@@ -1,3 +1,5 @@
+from audioop import avg
+from datetime import datetime
 from numpy import dtype
 from pyspark.sql import SparkSession;
 import pandas as pd; 
@@ -22,6 +24,34 @@ def walkDataDir(presentDirectory):
             zippedFiles.append(os.path.join(root,f))
 
     return zippedFiles; 
+
+
+def readZipContents():
+
+    pass
+
+
+def averageTripsAndTotalTrips():
+
+    pass
+
+def stationPopularityByMonth():
+
+    pass 
+
+
+def stationPopularityByDay():
+
+    pass
+
+
+def averageTripDurationByGender():
+
+    pass 
+
+def tripDurationByAge():
+
+    pass
 
 def main():
 
@@ -106,17 +136,20 @@ def main():
     ).sort_values(['start_time','most_popular_day']).groupby('start_time').tail(3)
 
 
-    # Gender statistics; 
+    # Do Males or Females take longer trips on average?
     genderStats = q19.copy(); 
 
     genderStats = genderStats.loc[((genderStats['gender'] != '') & (genderStats['birthyear'] != ''))]
 
-    # dataframe for trips length; 
-    tripLength = genderStats.copy().assign(avg_trip_length = lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(5))
+    # # dataframe for trips length; 
+    genderStats = genderStats[['gender',
+    'tripduration']].groupby('gender', 
+    as_index=False).mean().round(2).assign(avg_tripduration=lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(2)).applymap(str).assign(avg_tripduration= lambda newForm: (newForm['avg_tripduration'].str.replace('.',':'))).drop(columns=['tripduration'])
 
-    tripLength = tripLength[['gender','avg_trip_length']].groupby('gender', as_index=False).mean().round(2)
 
-    print(dailyPopularity)
+    print(genderStats)
+
+    # What is the top 10 ages of those that take the longest trips, and shortest?
 
     pass
 if __name__ == '__main__':
