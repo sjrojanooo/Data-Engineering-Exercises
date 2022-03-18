@@ -75,7 +75,8 @@ def main():
     stationPopularity.insert(1, 'month', first_position);
 
     popularityByMonth = stationPopularity.copy()
-    # three most popular stations for each month; 
+
+    # What was the most popular starting trip station for each month?
     popularityByMonth = popularityByMonth[['month',
         'from_station_name','trip_id']].groupby(['month','from_station_name'],
         as_index=False).agg(
@@ -84,7 +85,7 @@ def main():
     ascending=False).groupby('month', 
     as_index=False).first()
 
-    # most popular stations for each day the last two weeks; 
+    # What were the top 3 trip stations each day for the last two weeks?
     dailyPopularity = stationPopularity.copy()
 
     maxDate= pd.to_datetime(pd.Timestamp(dailyPopularity['start_time'].max()) - pd.Timedelta("14 day")).strftime('%m/%d/%Y')
