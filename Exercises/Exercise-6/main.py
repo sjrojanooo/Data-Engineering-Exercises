@@ -45,7 +45,7 @@ def averageTripDurationByGender():
 
     pass 
 
-def tripDurationByAge():
+def tripDurationByAge(df, genderCol, birthCol, tripColumn):
 
     pass
 
@@ -85,20 +85,15 @@ def main():
         average_trip_duration=('tripduration', 'mean')
     );
 
-
     # most popular trips for each month; 
     stationPopularity = q19.copy()
 
     # formatting the start and end time columns as mm/dd/yyyy format; 
-    stationPopularity['start_time'] = pd.to_datetime(stationPopularity['start_time']).dt.strftime('%m/%d/%Y');
+    stationPopularity = q19.copy().assign(
+        start_time=lambda date: (pd.to_datetime(date['start_time']).dt.strftime('%m/%d/%Y'))).assign(
+            end_time=lambda date: (pd.to_datetime(date['end_time']).dt.strftime('%m/%d/%Y'))).assign(
+                month=lambda day: (pd.to_datetime(day['start_time']).dt.month_name()))
 
-    stationPopularity['end_time'] = pd.to_datetime(stationPopularity['end_time']).dt.strftime('%m/%d/%Y');
-
-    stationPopularity['month'] = pd.to_datetime(stationPopularity['start_time']).dt.month_name()
-
-    first_position = stationPopularity.pop('month');
-
-    stationPopularity.insert(1, 'month', first_position);
 
     popularityByMonth = stationPopularity.copy()
 
@@ -112,24 +107,24 @@ def main():
     as_index=False).first()
 
     # What were the top 3 trip stations each day for the last two weeks?
-    dailyPopularity = stationPopularity.copy()
-
+    # formatting the date columns and formatting the day day name; 
+    dailyPopularity = stationPopularity.copy().assign(
+        start_time=lambda date: (pd.to_datetime(date['start_time']).dt.strftime('%m/%d/%Y'))).assign(
+            end_time=lambda date: (pd.to_datetime(date['end_time']).dt.strftime('%m/%d/%Y'))).assign(
+                day_of_week=lambda day: (pd.to_datetime(day['start_time']).dt.day_name()))
+        
     # formatting the start and end time columns as mm/dd/yyyy format; 
-    dailyPopularity['start_time'] = pd.to_datetime(dailyPopularity['start_time']).dt.strftime('%m/%d/%Y');
-
-    dailyPopularity['end_time'] = pd.to_datetime(dailyPopularity['end_time']).dt.strftime('%m/%d/%Y');
-
     maxDate= pd.to_datetime(pd.Timestamp(dailyPopularity['start_time'].max()) - pd.Timedelta("14 day")).strftime('%m/%d/%Y')
 
+    # filtering by dates greater than or equal to the start time 
     dailyPopularity = dailyPopularity.loc[dailyPopularity['start_time'] >= maxDate]
-
-    dailyPopularity['day_of_week'] = pd.to_datetime(dailyPopularity['start_time']).dt.day_name(); 
     
+    # group by to find the 3 most popular stations by day for the last two weeks; 
     dailyPopularity = dailyPopularity[['start_time',
     'day_of_week','from_station_name','trip_id']].groupby(['start_time',
     'from_station_name','day_of_week'], as_index=False).agg(
-        most_popular_day=('trip_id','count')
-    ).sort_values(['start_time','most_popular_day']).groupby('start_time').tail(3)
+        most_popular_station=('trip_id','count')
+    ).sort_values(['start_time','most_popular_station']).groupby('start_time').tail(3)
 
 
     # Do Males or Females take longer trips on average?
@@ -140,7 +135,7 @@ def main():
     # # dataframe for trips length; 
     genderStats = genderStats[['gender',
     'tripduration']].groupby('gender', 
-    as_index=False).mean().round(2).assign(avg_tripduration=lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(2)).applymap(str).assign(avg_tripduration= lambda newForm: (newForm['avg_tripduration'].str.replace('.',':'))).drop(columns=['tripduration'])
+    as_index=False).mean().round(2).assign(avg_trip_in_minutes=lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(2)).applymap(str).assign(avg_trip_in_minutes= lambda newForm: (newForm['avg_trip_in_minutes'].str.replace(r'.',':', regex=True))).drop(columns=['tripduration'])
 
 
     print(genderStats)
