@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pyspark.sql import SparkSession;
 import pandas as pd; 
 import numpy as np; 
@@ -84,6 +84,7 @@ def main():
         daily_trip_count=('trip_id','count'),
         average_trip_duration=('tripduration', 'mean')
     );
+    #ENDS AVERAGE TRIP DURATION
 
     # most popular trips for each month; 
     stationPopularity = q19.copy()
@@ -92,10 +93,10 @@ def main():
     stationPopularity = q19.copy().assign(
         start_time=lambda date: (pd.to_datetime(date['start_time']).dt.strftime('%m/%d/%Y'))).assign(
             end_time=lambda date: (pd.to_datetime(date['end_time']).dt.strftime('%m/%d/%Y'))).assign(
-                month=lambda day: (pd.to_datetime(day['start_time']).dt.month_name()))
+                month=lambda day: (pd.to_datetime(day['start_time']).dt.month_name()));
 
 
-    popularityByMonth = stationPopularity.copy()
+    popularityByMonth = stationPopularity.copy();
 
     # What was the most popular starting trip station for each month?
     popularityByMonth = popularityByMonth[['month',
@@ -104,43 +105,59 @@ def main():
         most_popular_month=('trip_id','count')
     ).sort_values(['month','most_popular_month'], 
     ascending=False).groupby('month', 
-    as_index=False).first()
+    as_index=False).first();
+    #ENDS POPULARITY BY MONTH; 
 
     # What were the top 3 trip stations each day for the last two weeks?
     # formatting the date columns and formatting the day day name; 
     dailyPopularity = stationPopularity.copy().assign(
         start_time=lambda date: (pd.to_datetime(date['start_time']).dt.strftime('%m/%d/%Y'))).assign(
             end_time=lambda date: (pd.to_datetime(date['end_time']).dt.strftime('%m/%d/%Y'))).assign(
-                day_of_week=lambda day: (pd.to_datetime(day['start_time']).dt.day_name()))
-        
-    # formatting the start and end time columns as mm/dd/yyyy format; 
-    maxDate= pd.to_datetime(pd.Timestamp(dailyPopularity['start_time'].max()) - pd.Timedelta("14 day")).strftime('%m/%d/%Y')
-
-    # filtering by dates greater than or equal to the start time 
-    dailyPopularity = dailyPopularity.loc[dailyPopularity['start_time'] >= maxDate]
+                day_of_week=lambda day: (pd.to_datetime(stationPopularity['start_time']).dt.day_name())).loc[stationPopularity['start_time'] >=  pd.to_datetime(
+                    pd.Timestamp(stationPopularity['start_time'].max()) - pd.Timedelta("14 day")).strftime('%m/%d/%Y')];
     
+
     # group by to find the 3 most popular stations by day for the last two weeks; 
     dailyPopularity = dailyPopularity[['start_time',
     'day_of_week','from_station_name','trip_id']].groupby(['start_time',
     'from_station_name','day_of_week'], as_index=False).agg(
         most_popular_station=('trip_id','count')
-    ).sort_values(['start_time','most_popular_station']).groupby('start_time').tail(3)
+    ).sort_values(['start_time','most_popular_station']).groupby('start_time').tail(3);
+
+    print(dailyPopularity)
+    #ENDS DAILY POPULARITY
 
 
     # Do Males or Females take longer trips on average?
-    genderStats = q19.copy(); 
-
-    genderStats = genderStats.loc[((genderStats['gender'] != '') & (genderStats['birthyear'] != ''))]
+    genderStats = q19.copy().loc[((q19['gender'] != '') & (q19['birthyear'] != ''))]; 
 
     # # dataframe for trips length; 
     genderStats = genderStats[['gender',
-    'tripduration']].groupby('gender', 
-    as_index=False).mean().round(2).assign(avg_trip_in_minutes=lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(2)).applymap(str).assign(avg_trip_in_minutes= lambda newForm: (newForm['avg_trip_in_minutes'].str.replace(r'.',':', regex=True))).drop(columns=['tripduration'])
-
-
-    print(genderStats)
+    'tripduration']].groupby('gender', as_index=False).mean().round(2).assign(
+        avg_trip_in_minutes=lambda avgMinutes: (avgMinutes['tripduration'] / 60).round(2)).applymap(str).assign(
+            avg_trip_in_minutes= lambda newForm: (newForm['avg_trip_in_minutes'].str.replace(r'.',':', regex=True))
+            ).drop(columns=['tripduration']);
+    #ENDS GENDER STATS
 
     # What is the top 10 ages of those that take the longest trips, and shortest?
+    tripByAge = q19.copy().loc[((q19['gender'] != '') & (q19['birthyear'] != ''))].assign(
+        current_year=date.today().year
+    ).assign(birthyear=lambda convertFloat: pd.to_numeric(convertFloat['birthyear'],downcast='integer')).assign(
+        age=lambda age: (age['current_year'] - age['birthyear'])
+    )[['age','birthyear','tripduration']].groupby(['age','birthyear'], as_index=False).mean().sort_values(
+        ['tripduration','age'],ascending=False).assign(
+            avg_tripduration_by_age=lambda minutes: (minutes['tripduration'] / 60).round(2)
+            ).drop(columns=['tripduration']);
+
+    # have to keep an eye out for the age group riding these bikes. 
+    longestTrips = tripByAge.copy().head(10).sort_values('avg_tripduration_by_age', ascending=False);
+
+    shortestTrips = tripByAge.copy().tail(10).sort_values('avg_tripduration_by_age');
+
+    print(longestTrips); 
+
+    print(shortestTrips); 
+    # END OF LONGEST/SHORTEST TRIPS BY AGE GROUP; 
 
     pass
 if __name__ == '__main__':
