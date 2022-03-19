@@ -191,9 +191,6 @@ def main():
     longestTrips, shortestTrips = longestShortestTripByAge(quarter19); 
 
 
-    # i will be coming back to change out some of the functions column names with 
-    # variables instead. the quarter 20 csv file has different headers for its columns
-    # it also doesn't have the age group listed on there either; 
     pass
 
 if __name__ == '__main__':
