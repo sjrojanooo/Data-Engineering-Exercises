@@ -1,16 +1,11 @@
-from datetime import date
-import pdb
-from unicodedata import decimal
 from pyspark.sql.window import Window
 import pyspark
 from pyspark.sql import SparkSession;
-import pyspark.sql.functions as F;
-from pyspark.sql.types import *
 import pandas as pd; 
 import numpy as np; 
-import pyspark.pandas as ps
 import zipfile; 
 import os; 
+from datetime import date
 
 
 spark = SparkSession.builder.appName('Exercise6') \
