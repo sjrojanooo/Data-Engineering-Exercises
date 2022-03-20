@@ -65,11 +65,11 @@ def averageTripsAndTotalTrips(dataFrame):
     # formats date time to mm/dd/yyyy format; 
     return dataFrame.withColumn("start_time",F.to_timestamp(
         
-        "start_time").cast(
-            
-            "date")).groupBy("start_time").agg(F.count(dataFrame.trip_id).alias("total_trips"),
-            
-                F.round(F.mean(dataFrame.tripduration)/2 ,2).alias("avg_trip_time")).orderBy("start_time").show()
+            "start_time").cast(
+                
+                "date")).groupBy("start_time").agg(F.count(dataFrame.trip_id).alias("total_trips"),
+                
+                    F.round(F.mean(dataFrame.tripduration)/2 ,2).alias("avg_trip_time")).orderBy("start_time")
 
 # returns most popular station by month; 
 def stationPopularityByMonth(dataFrame):
@@ -111,64 +111,52 @@ def stationPopularityByDay(dataFrame):
                                                             ["start_time","total_trip_count"]).groupby("start_time").tail(3)
     return create_frame(dailyPopularity)
 
+# Do Males or Females take longer trips on average?
 def averageTripDurationByGender(dataFrame):
-    # Do Males or Females take longer trips on average?
-    # # dataframe for trips length; 
-    genderStats = dataFrame[["gender",
+    
+    return dataFrame.select("gender","tripduration").groupBy("gender").agg(
+        
+            F.round(F.mean("tripduration"),2).alias("avg_trip")).replace('NaN', None
+                
+                ).dropna()
+# def longestShortestTripByAge(dataFrame):
 
-        "tripduration"]].groupby("gender", as_index=False).mean().assign(
+    # # What is the top 10 ages of those that take the longest trips, and shortest?
+    # tripByAge = dataFrame.copy().loc[((dataFrame["gender"] != "") & (dataFrame["birthyear"] != ""))].assign(
 
-            tripduration=lambda x: round(x["tripduration"]/60,2)
+    #     current_year=date.today().year
 
-                ).applymap(str).assign(
+    #         ).assign(birthyear=lambda convertFloat: convertFloat["birthyear"].round(0)).assign(
 
-                        avg_trip_in_minutes= lambda newForm: (
+    #             age=lambda age: (age["current_year"] - age["birthyear"])
 
-                                newForm["tripduration"].str.replace(r".",":", regex=True)
+    #                 )[["age","birthyear","tripduration"]].groupby(["age","birthyear"], as_index=False).mean().sort_values(
 
-                                    )).drop(columns=["tripduration"]);
+    #                     ["tripduration","age"],ascending=False).assign(
 
-    return create_frame(genderStats);
-
-
-def longestShortestTripByAge(dataFrame):
-
-    # What is the top 10 ages of those that take the longest trips, and shortest?
-    tripByAge = dataFrame.copy().loc[((dataFrame["gender"] != "") & (dataFrame["birthyear"] != ""))].assign(
-
-        current_year=date.today().year
-
-            ).assign(birthyear=lambda convertFloat: convertFloat["birthyear"].round(0)).assign(
-
-                age=lambda age: (age["current_year"] - age["birthyear"])
-
-                    )[["age","birthyear","tripduration"]].groupby(["age","birthyear"], as_index=False).mean().sort_values(
-
-                        ["tripduration","age"],ascending=False).assign(
-
-                                avg_minutes=lambda minutes: (minutes["tripduration"]/60).round(2)
+    #                             avg_minutes=lambda minutes: (minutes["tripduration"]/60).round(2)
                                 
-                                ).drop(columns=["tripduration"]);
+    #                             ).drop(columns=["tripduration"]);
 
 
-    # shortest and longest trips in separate data frames; 
-    longestTrips = tripByAge.copy().head(10).sort_values(
+    # # shortest and longest trips in separate data frames; 
+    # longestTrips = tripByAge.copy().head(10).sort_values(
 
-        "avg_minutes", ascending=False).applymap(str).assign(
+    #     "avg_minutes", ascending=False).applymap(str).assign(
 
-            avg_minutes= lambda newForm: (newForm["avg_minutes"].str.replace(r".",":", regex=True))
+    #         avg_minutes= lambda newForm: (newForm["avg_minutes"].str.replace(r".",":", regex=True))
 
-            );
+    #         );
 
-    shortestTrips = tripByAge.copy().tail(10).sort_values(
+    # shortestTrips = tripByAge.copy().tail(10).sort_values(
 
-        "avg_minutes").applymap(str).assign(
+    #     "avg_minutes").applymap(str).assign(
 
-            avg_minutes= lambda newForm: (newForm["avg_minutes"].str.replace(r".",":", regex=True))
+    #         avg_minutes= lambda newForm: (newForm["avg_minutes"].str.replace(r".",":", regex=True))
 
-            );
+    #         );
 
-    return create_frame(longestTrips), create_frame(shortestTrips);
+    # return create_frame(longestTrips), create_frame(shortestTrips);
 
 def main():    
 
@@ -179,28 +167,11 @@ def main():
     # How many trips were taken each day?
     averageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame)
 
-    pop = stationPopularityByMonth(quarter19DataFrame); 
-
-    pop.show()
-    # averageTotalTripsDf.groupBy("start_time").agg(
-        
-    #     F.count(averageTotalTripsDf.trip_id).alias("total_trips"), 
-        
-    #         F.round(F.mean(averageTotalTripsDf.tripduration) / 2, 2).alias(
-                
-    #             "avg_trip_time")).orderBy("start_time").show()
-
-
-    # averageTotalTripsDf.repartition(1).write.mode("overwrite").format("csv").option(
-    #     "header", "true").csv("./data/x.csv")
-    # # most popular trips for each month; 
-    # monthDf19 = stationPopularityByMonth(quarter19DataFrame);
-
-    # monthlyPopularity19 = stationPopularityByMonth(quarter19DataFrame); 
+    monthDf19 = stationPopularityByMonth(quarter19DataFrame); 
 
     # dailyPopularity19 = stationPopularityByDay(quarter19DataFrame); 
 
-    # tripDurationByGender = averageTripDurationByGender(quarter19DataFrame); 
+    tripDurationByGender = averageTripDurationByGender(quarter19DataFrame); 
 
     # longestTripsByGender, shortestTripsByGender = longestShortestTripByAge(quarter19DataFrame); 
 
