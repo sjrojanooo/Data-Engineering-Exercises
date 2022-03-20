@@ -1,6 +1,9 @@
 from datetime import date
+from pyspark.sql.window import Window
+import pyspark
 from pyspark.sql import SparkSession;
 import pyspark.sql.functions as F;
+from pyspark.sql.types import *
 import pandas as pd; 
 import numpy as np; 
 import pyspark.pandas as ps
@@ -9,16 +12,13 @@ import os;
 
 
 spark = SparkSession.builder.appName('Exercise6') \
-        .enableHiveSupport().getOrCreate()
-
+            .enableHiveSupport().getOrCreate()
 # method to walk the data directory and return the path endpoint to each zip file; 
 def walkDataDir(presentDirectory):
 
-    dataPath = f'{presentDirectory}/data'; 
-
     zippedFiles = []; 
 
-    for root, dir_names ,fileNames in os.walk(dataPath):
+    for root, dir_names ,fileNames in os.walk(presentDirectory):
 
         for f in fileNames: 
 
@@ -26,39 +26,44 @@ def walkDataDir(presentDirectory):
 
     return zippedFiles; 
 
-# method to read zip contents; 
-def readZipContents(data_dirname,response,startTimeCol,tripDurationCol):
 
-    zipResponse = walkDataDir(data_dirname)    
+def readZipContents(zipIndex,csvIndex):
 
-    zip_file = zipfile.ZipFile(zipResponse[response])
+        files = walkDataDir(os.path.abspath('./data'))
 
-    df = pd.read_csv(zip_file.open(zip_file.namelist()[0]),
-        thousands=',',
-            decimal='.',
-            )
+        zip_file = zipfile.ZipFile(files[zipIndex])
 
-    df[tripDurationCol] = (df[tripDurationCol] / 60).round(2)
+        name_list = zip_file.namelist()
 
-    df = ps.DataFrame(df)
+        dflist = [];
 
-    return df
+        with zipfile.ZipFile(files[zipIndex], 'r') as zip:
 
-def averageTripsAndTotalTrips(dataFrame, startTimeCol, tripIdCol, tripDurCol):
+            with zip.open(zip.namelist()[csvIndex]) as myFile: 
+
+                dflist.append(pd.read_csv(myFile))
+
+        df = pd.concat(dflist)
+        
+        return df.values.tolist(), df.columns.tolist(),df
+    
+
+def averageTripsAndTotalTrips(dataFrame):
+
     # Average Trip duration and total trips taken per day; 
-    dataFrame = dataFrame[[startTimeCol,tripIdCol,tripDurCol
+    dataFrame = dataFrame[['start_time','trip_id','tripduration'
 
-        ]].assign(startTimeCol= lambda x: (ps.to_datetime(x[startTimeCol]).dt.strftime('%m/%d/%Y'))).groupby(startTimeCol).agg(
+        ]].assign(startTimeCol= lambda x: (pd.to_datetime(x['start_time']).dt.strftime('%m/%d/%Y'))).groupby('start_time').agg(
 
-            daily_trip_count=(tripIdCol,'count'),
+            daily_trip_count=('trip_id','count'),
 
-                average_trip_duration=(tripDurCol, 'mean')
+                average_trip_duration=('trip_id', 'mean')
 
                 ).sort_index();
 
     dataFrame['average_trip_duration'] = dataFrame['average_trip_duration'].round(2)
 
-    return dataFrame
+    return dataFrame.values.tolist(), dataFrame.columns.tolist()
 
     
 def stationPopularityByMonth(dataFrame):
@@ -170,28 +175,44 @@ def longestShortestTripByAge(dataFrame):
 
 def main():    
 
-    # Quarter 19 contents; 
-    quarter19 = readZipContents(os.path.abspath(''),1,'start_time','tripduration');
+    df, columns, actualDf = readZipContents(1,0)
 
-    # Average trips and total trip count csv file; 
-    avgDf = averageTripsAndTotalTrips(quarter19,
-    'start_time','trip_id','tripduration'
-    );
-    
-    # most popular trips for each month; 
-    monthDf19 = stationPopularityByMonth(quarter19);
+    values, columns = averageTripsAndTotalTrips(actualDf); 
 
-    # popularity for the past two weeks; 
-    weekly19 = stationPopularityByDay(quarter19);
+    # # # Quarter 19 contents; 
+    sc = spark.sparkContext; 
 
-    # mean tripduration by gender; 
-    genderStats = averageTripDurationByGender(quarter19); 
+    df = spark.createDataFrame(sc.parallelize(values),columns)
 
-    # longest and shortest trips by age group; 
-    longestTrips, shortestTrips = longestShortestTripByAge(quarter19); 
+    df.printSchema()
+
+    df.show()
 
 
-    pass
+    # df = df.collect(); 
+
+    # print(df)
+
+    # # most popular trips for each month; 
+    # monthDf19 = stationPopularityByMonth(quarter19);
+
+    # # popularity for the past two weeks; 
+    # weekly19 = stationPopularityByDay(quarter19);
+
+    # # mean tripduration by gender; 
+    # genderStats = averageTripDurationByGender(quarter19); 
+
+    # # longest and shortest trips by age group; 
+    # longestTrips, shortestTrips = longestShortestTripByAge(quarter19); 
+
+    # print(longestTrips)
+
+    # spark.sql("set spark.sql.files.ignoreCorruptFiles=true")
+    # dir1/file3.json is corrupt from parquet's view
+    # test_corrupt_df = spark.read.format("binaryFile").option("pathGlobFilter", "*.zip").load(os.path.abspath('./data'));
+
+    # print(test_corrupt_df.show())
+
 
 if __name__ == '__main__':
     main()
