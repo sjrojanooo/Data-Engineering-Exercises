@@ -1,4 +1,6 @@
 from datetime import date
+import pdb
+from unicodedata import decimal
 from pyspark.sql.window import Window
 import pyspark
 from pyspark.sql import SparkSession;
@@ -13,6 +15,13 @@ import os;
 
 spark = SparkSession.builder.appName('Exercise6') \
             .enableHiveSupport().getOrCreate()
+
+sc = spark.sparkContext; 
+
+def create_frame(dataFrame):
+
+    return spark.createDataFrame(sc.parallelize(dataFrame.values.tolist()),dataFrame.columns.tolist())
+
 # method to walk the data directory and return the path endpoint to each zip file; 
 def walkDataDir(presentDirectory):
 
@@ -35,17 +44,20 @@ def readZipContents(zipIndex,csvIndex):
 
         name_list = zip_file.namelist()
 
-        dflist = [];
+        datalist = [];
 
         with zipfile.ZipFile(files[zipIndex], 'r') as zip:
 
             with zip.open(zip.namelist()[csvIndex]) as myFile: 
 
-                dflist.append(pd.read_csv(myFile))
+                datalist.append(pd.read_csv(myFile,
+                    thousands=',',
+                    decimal='.',
+                ))
 
-        df = pd.concat(dflist)
+        data_frame = pd.concat(datalist)
         
-        return df.values.tolist(), df.columns.tolist(),df
+        return data_frame
     
 
 def averageTripsAndTotalTrips(dataFrame):
@@ -53,69 +65,78 @@ def averageTripsAndTotalTrips(dataFrame):
     # Average Trip duration and total trips taken per day; 
     dataFrame = dataFrame[['start_time','trip_id','tripduration'
 
-        ]].assign(startTimeCol= lambda x: (pd.to_datetime(x['start_time']).dt.strftime('%m/%d/%Y'))).groupby('start_time').agg(
+        ]].assign(start_time= lambda x: (pd.to_datetime(x['start_time']).dt.strftime('%m/%d/%Y'))).groupby('start_time',as_index=False).agg(
 
             daily_trip_count=('trip_id','count'),
 
-                average_trip_duration=('trip_id', 'mean')
+                average_trip_duration=('tripduration','mean')
 
-                ).sort_index();
+                ).assign(
 
-    dataFrame['average_trip_duration'] = dataFrame['average_trip_duration'].round(2)
+                    average_trip_duration=lambda x: (round(x['average_trip_duration'] / 60,2))
+                    
+                        ).assign(
 
-    return dataFrame.values.tolist(), dataFrame.columns.tolist()
+                            average_trip_duration=lambda x: x['average_trip_duration'].astype(str).str.replace(r'.',':',regex=True)
+                            
+                            )
 
+    return  create_frame(dataFrame)
     
 def stationPopularityByMonth(dataFrame):
+
     # formatting the start and end time columns as mm/dd/yyyy format; 
     dataFrame = dataFrame[['start_time','from_station_name','tripduration']].assign(
 
-        month=lambda day: (
+        month=lambda day: (pd.to_datetime(
+            
+                day.start_time).dt.month_name())
 
-            ps.to_datetime(day.start_time).dt.month_name())
+                ).groupby(['month','from_station_name'],as_index=False).count().rename(
+                    
+                    columns={'tripduration':'total_trip_count'
 
-                ).groupby(['month','from_station_name'],
+                            }).sort_values('total_trip_count').drop(
 
-                    as_index=False).count().rename(columns={
-
-                        'tripduration':'total_trip_count'
-
-                            }).sort_values(['month','total_trip_count'], 
-
-                                ascending=False).groupby('month', 
+                                columns=['start_time']).groupby('month', 
 
                                     as_index=False).first();
 
-    return dataFrame
+    return create_frame(dataFrame)
 
 
 def stationPopularityByDay(dataFrame):
+
     # What were the top 3 trip stations each day for the last two weeks?
     # formatting the date columns and formatting the day day name; 
     dailyPopularity = dataFrame.copy().assign(
 
-        start_time=lambda date: (ps.to_datetime(date['start_time']).dt.strftime('%m/%d/%Y'))).assign(
+                day_of_week=lambda day: (pd.to_datetime(dataFrame['start_time']).dt.day_name())).loc[
 
-            end_time=lambda date: (ps.to_datetime(date['end_time']).dt.strftime('%m/%d/%Y'))).assign(
+                    pd.to_datetime(dataFrame['start_time']) >= pd.to_datetime(dataFrame['start_time'].max()) - pd.Timedelta(days=14)
 
-                day_of_week=lambda day: (ps.to_datetime(dataFrame['start_time']).dt.day_name())).loc[dataFrame.start_time >=  ps.to_datetime(
+                        ].assign(
 
-                  ps.to_datetime(dataFrame['start_time']).max() - pd.Timedelta("14 days"))][['start_time',
+                            start_time=lambda x: (pd.to_datetime(x['start_time']).dt.strftime('%m/%d/%Y')))[
+                                
+                                ['start_time','day_of_week','from_station_name','trip_id']].groupby([
 
-                        'day_of_week','from_station_name','trip_id']].groupby(['start_time',
+                                            'start_time','day_of_week','from_station_name'
+                                            
+                                                ], as_index=False).agg(
 
-                        'from_station_name','day_of_week'], as_index=False).count().rename(
+                                                    total_trip_count=('trip_id','count')
 
-                            columns={'trip_id':'total_trip_count'}).sort_values(       
+                                                        ).sort_values(
+                                                            
+                                                            ['start_time','total_trip_count']).groupby('start_time').tail(3)
 
-                                ['start_time','total_trip_count']).groupby(
 
-                                    'start_time').tail(3);
-
-    return dailyPopularity  
+    return create_frame(dailyPopularity)
 
 
 def averageTripDurationByGender(dataFrame):
+
     # Do Males or Females take longer trips on average?
 
     # # dataframe for trips length; 
@@ -123,17 +144,18 @@ def averageTripDurationByGender(dataFrame):
 
     'tripduration']].groupby('gender', as_index=False).mean().assign(
 
-        tripduration=lambda x: x['tripduration'].round(2)
+        tripduration=lambda x: round(x['tripduration']/60,2)
 
             ).applymap(str).assign(
 
                     avg_trip_in_minutes= lambda newForm: (
 
-                            newForm.tripduration.str.replace(r'.',':', regex=True)
+                            newForm['tripduration'].str.replace(r'.',':', regex=True)
 
                                 )).drop(columns=['tripduration']);
 
-    return genderStats;
+    return create_frame(genderStats);
+
 
 def longestShortestTripByAge(dataFrame):
 
@@ -150,68 +172,53 @@ def longestShortestTripByAge(dataFrame):
 
                         ['tripduration','age'],ascending=False).assign(
 
-                                avg_tripduration_by_age=lambda minutes: (minutes['tripduration']).round(2)
+                                avg_minutes=lambda minutes: (minutes['tripduration']/60).round(2)
                                 
                                 ).drop(columns=['tripduration']);
+
 
     # shortest and longest trips in separate data frames; 
     longestTrips = tripByAge.copy().head(10).sort_values(
 
-        'avg_tripduration_by_age', ascending=False).applymap(str).assign(
+        'avg_minutes', ascending=False).applymap(str).assign(
 
-            avg_tripduration_by_age= lambda newForm: (newForm['avg_tripduration_by_age'].str.replace(r'.',':', regex=True))
+            avg_minutes= lambda newForm: (newForm['avg_minutes'].str.replace(r'.',':', regex=True))
 
             );
 
     shortestTrips = tripByAge.copy().tail(10).sort_values(
 
-        'avg_tripduration_by_age').applymap(str).assign(
+        'avg_minutes').applymap(str).assign(
 
-            avg_tripduration_by_age= lambda newForm: (newForm['avg_tripduration_by_age'].str.replace(r'.',':', regex=True))
+            avg_minutes= lambda newForm: (newForm['avg_minutes'].str.replace(r'.',':', regex=True))
 
             );
 
-    return longestTrips, shortestTrips;
+    return create_frame(longestTrips), create_frame(shortestTrips);
 
 def main():    
 
-    df, columns, actualDf = readZipContents(1,0)
+    # Quarter 19 contents; 
+    quarter19DataFrame = readZipContents(1,0)
 
-    values, columns = averageTripsAndTotalTrips(actualDf); 
+    averageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame); 
 
-    # # # Quarter 19 contents; 
-    sc = spark.sparkContext; 
+    # most popular trips for each month; 
+    monthDf19 = stationPopularityByMonth(quarter19DataFrame);
 
-    df = spark.createDataFrame(sc.parallelize(values),columns)
+    monthlyPopularity19 = stationPopularityByMonth(quarter19DataFrame); 
 
-    df.printSchema()
+    dailyPopularity19 = stationPopularityByDay(quarter19DataFrame); 
 
-    df.show()
+    tripDurationByGender = averageTripDurationByGender(quarter19DataFrame); 
 
+    longestTripsByGender, shortestTripsByGender = longestShortestTripByAge(quarter19DataFrame); 
 
-    # df = df.collect(); 
+    longestTripsByGender.show()
 
-    # print(df)
+    shortestTripsByGender.show()
 
-    # # most popular trips for each month; 
-    # monthDf19 = stationPopularityByMonth(quarter19);
-
-    # # popularity for the past two weeks; 
-    # weekly19 = stationPopularityByDay(quarter19);
-
-    # # mean tripduration by gender; 
-    # genderStats = averageTripDurationByGender(quarter19); 
-
-    # # longest and shortest trips by age group; 
-    # longestTrips, shortestTrips = longestShortestTripByAge(quarter19); 
-
-    # print(longestTrips)
-
-    # spark.sql("set spark.sql.files.ignoreCorruptFiles=true")
-    # dir1/file3.json is corrupt from parquet's view
-    # test_corrupt_df = spark.read.format("binaryFile").option("pathGlobFilter", "*.zip").load(os.path.abspath('./data'));
-
-    # print(test_corrupt_df.show())
+    #ENDS QUARTER 19 DIVVY TRIP INFO; 
 
 
 if __name__ == '__main__':
