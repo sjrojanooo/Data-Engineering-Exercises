@@ -124,21 +124,25 @@ def averageTripDurationByGender(dataFrame):
                         .replace("NaN", None).dropna()
     return dataFrame
 
-# What is the top 10 ages of those that take the longest trips, and shortest?            
+# What are the top 10 ages of those that take the longest trips, and shortest?            
 def longestShortestTripByAge(dataFrame):
 
-    w = Window.partitionBy("age_group", "tripduration")
-    
-    dataFrame = dataFrame.select("gender","birthyear","tripduration")\
+    dataFrame = dataFrame.select("birthyear","tripduration")\
                     .replace("NaN", None).dropna()\
                         .withColumn("birthyear", dataFrame["birthyear"].cast(T.IntegerType()))\
                             .withColumn("current_year", F.year(F.current_timestamp()).cast(T.IntegerType()))\
                                 .withColumn("age_group", F.col("current_year")-F.col("birthyear"))\
-                                    .select("age_group","tripduration")\
-                                        .groupBy("age_group")\
-                                            .agg(F.mean("tripduration").alias("avg_trip_time"))
+                                    .groupby("age_group").agg(F.round(F.mean("tripduration"),2).alias("avg_trip_time"))\
+                                        .sort(F.desc("avg_trip_time"))\
+                                            .withColumn("rank", F.monotonically_increasing_id()+1)
 
-    return  dataFrame
+    # Top 10 longest trips by age; 
+    longest = dataFrame.where(F.col("rank") <= 10)
+    # Top 10 shortest trips by age; 
+    shortest = dataFrame.filter(F.col("rank") >= dataFrame.count() - 10)
+
+
+    return  longest, shortest
 
 def main():    
 
@@ -154,13 +158,13 @@ def main():
 
     # monthDf19 = stationPopularityByMonth(quarter19DataFrame).show(50); 
 
-    dailyPopularity19 = stationPopularityByDay(quarter19DataFrame).show(50); 
+    # dailyPopularity19 = stationPopularityByDay(quarter19DataFrame).show(50); 
 
     # tripDurationByGender = averageTripDurationByGender(quarter19DataFrame).show(50); 
 
-    # longestTrips = longestShortestTripByAge(quarter19DataFrame)
+    longestTrips, shortestTrips= longestShortestTripByAge(quarter19DataFrame)
 
-    dailyPopularity19.show()
+    longestTrips.show()
 
     # longestTrips
 
