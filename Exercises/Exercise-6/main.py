@@ -1,5 +1,3 @@
-from dataclasses import replace
-import pyspark;
 from pyspark.sql import SparkSession;
 from pyspark.sql.window import Window;
 from pyspark.sql import functions as F;
@@ -164,6 +162,7 @@ def main():
 
     q20MonthlyPopularityDf = stationPopularityByMonth(quarter20DataFrame, "started_at", "start_station_name", "ride_id")
 
+    q20MonthlyPopularityDf.show()
 
 
 if __name__ == "__main__":
