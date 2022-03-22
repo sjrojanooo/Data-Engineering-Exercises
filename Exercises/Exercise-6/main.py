@@ -1,3 +1,4 @@
+from dataclasses import replace
 import pyspark;
 from pyspark.sql import SparkSession;
 from pyspark.sql.window import Window;
@@ -72,7 +73,7 @@ def averageTripsAndTotalTrips(dataFrame):
             .withColumn("date",F.to_timestamp("date").cast("date"))\
                 .groupBy("date")\
                     .agg(F.count(dataFrame.trip_id).alias("total_trips"),
-                        F.round(F.mean(dataFrame.tripduration),2).alias("avg_trip_time"))\
+                        F.round(F.mean(dataFrame.tripduration)/2,2).alias("avg_trip_time_in_minutes"))\
                             .orderBy("date")
     return dataFrame
 
@@ -120,7 +121,7 @@ def averageTripDurationByGender(dataFrame):
 
     dataFrame = dataFrame.select("gender","tripduration")\
             .groupBy("gender")\
-                .agg(F.round(F.mean("tripduration"),2).alias("avg_trip"))\
+                .agg(F.round(F.mean("tripduration") / 60,2).alias("avg_trip_time_in_minutes"))\
                         .replace("NaN", None).dropna()
     return dataFrame
 
@@ -130,17 +131,16 @@ def longestShortestTripByAge(dataFrame):
     dataFrame = dataFrame.select("birthyear","tripduration")\
                     .replace("NaN", None).dropna()\
                         .withColumn("birthyear", dataFrame["birthyear"].cast(T.IntegerType()))\
-                            .withColumn("current_year", F.year(F.current_timestamp()).cast(T.IntegerType()))\
+                            .withColumn("current_year", F.year(F.current_date()).cast(T.IntegerType()))\
                                 .withColumn("age_group", F.col("current_year")-F.col("birthyear"))\
-                                    .groupby("age_group").agg(F.round(F.mean("tripduration"),2).alias("avg_trip_time"))\
-                                        .sort(F.desc("avg_trip_time"))\
+                                    .groupby("age_group").agg(F.round(F.mean("tripduration") / 60,2).alias("avg_trip_time_in_minutes"))\
+                                        .sort(F.desc("avg_trip_time_in_minutes"))\
                                             .withColumn("rank", F.monotonically_increasing_id()+1)
 
     # Top 10 longest trips by age; 
     longest = dataFrame.where(F.col("rank") <= 10)
     # Top 10 shortest trips by age; 
-    shortest = dataFrame.filter(F.col("rank") >= dataFrame.count() - 10)
-
+    shortest = dataFrame.filter(F.col("rank") >= dataFrame.count() - 9).sort(F.desc("rank"))
 
     return  longest, shortest
 
@@ -149,29 +149,19 @@ def main():
     # Quarter 19 contents; 
     quarter19DataFrame = create_frame(readZipContents(1,0))
 
-    # What is the average trip duration per day?
-    # How many trips were taken each day?
+    averageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame)
 
-    # averageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame)
+    monthDf19 = stationPopularityByMonth(quarter19DataFrame)
 
-    # averageTotalTripsDf.show(50)
+    dailyPopularity19 = stationPopularityByDay(quarter19DataFrame)
 
-    # monthDf19 = stationPopularityByMonth(quarter19DataFrame).show(50); 
-
-    # dailyPopularity19 = stationPopularityByDay(quarter19DataFrame).show(50); 
-
-    # tripDurationByGender = averageTripDurationByGender(quarter19DataFrame).show(50); 
+    tripDurationByGender = averageTripDurationByGender(quarter19DataFrame)
 
     longestTrips, shortestTrips= longestShortestTripByAge(quarter19DataFrame)
-
-    longestTrips.show()
-
-    # longestTrips
-
-    # longestTripsByGender, shortestTripsByGender = longestShortestTripByAge(quarter19DataFrame); 
-
-
     #ENDS QUARTER 19 DIVVY TRIP INFO; 
+
+    # Quarter 20 contents; 
+    
 
 if __name__ == "__main__":
     main()
