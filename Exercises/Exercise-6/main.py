@@ -76,16 +76,16 @@ def averageTripsAndTotalTrips(dataFrame):
     return dataFrame
 
 # returns most popular station by month; 
-def stationPopularityByMonth(dataFrame):
+def stationPopularityByMonth(dataFrame, dateCol, stationCol, tripIDCol):
 
     # will be used to partition the result of the groupby statement. 
     # ranks all stations by the total trip count with each corresponding month;
     w = Window().partitionBy("month").orderBy(F.desc("total_trips"))
 
-    dataFrame = dataFrame.select("start_time","from_station_name","trip_id")\
-            .withColumn("start_time", F.to_timestamp("start_time").cast("date"))\
-                .withColumn("month", F.date_format("start_time","MMMM"))\
-                    .groupBy("from_station_name","month").agg(F.count("trip_id").alias("total_trips"))\
+    dataFrame = dataFrame.select(dateCol,stationCol,tripIDCol)\
+            .withColumn(dateCol, F.to_timestamp(dateCol).cast("date"))\
+                .withColumn("month", F.date_format(dateCol,"MMMM"))\
+                    .groupBy(stationCol,"month").agg(F.count(tripIDCol).alias("total_trips"))\
                         .withColumn("rank",F.dense_rank().over(w)).where(F.col("rank") == 1)
 
     return dataFrame
@@ -150,7 +150,7 @@ def main():
 
     averageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame)
 
-    monthDf19 = stationPopularityByMonth(quarter19DataFrame)
+    q19MonthlyPopularityDf = stationPopularityByMonth(quarter19DataFrame,"start_time", "from_station_name","trip_id")
 
     dailyPopularity19 = stationPopularityByDay(quarter19DataFrame)
 
@@ -160,6 +160,10 @@ def main():
     #ENDS QUARTER 19 DIVVY TRIP INFO; 
 
     # Quarter 20 contents; 
+    quarter20DataFrame = create_frame(readZipContents(0,0))
+
+    q20MonthlyPopularityDf = stationPopularityByMonth(quarter20DataFrame, "started_at", "start_station_name", "ride_id")
+
 
 
 if __name__ == "__main__":
