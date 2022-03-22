@@ -67,8 +67,6 @@ def averageTripsAndTotalTrips(dataFrame):
     # 1. formats date time to mm/dd/yyyy format; 
     # 2. performs a group by on the start_time key, I removed the timestamp from them so that days would have the same format; 
     # 3. performs a count on the trip_id, rounds to two decimal places, and creates an alias or new new name for the tripduration column 
-    # 4. Ordering by the 
-
     dataFrame = dataFrame.withColumnRenamed("start_time","date")\
             .withColumn("date",F.to_timestamp("date").cast("date"))\
                 .groupBy("date")\
@@ -79,7 +77,9 @@ def averageTripsAndTotalTrips(dataFrame):
 
 # returns most popular station by month; 
 def stationPopularityByMonth(dataFrame):
+
     # will be used to partition the result of the groupby statement. 
+    # ranks all stations by the total trip count with each corresponding month;
     w = Window().partitionBy("month").orderBy(F.desc("total_trips"))
 
     dataFrame = dataFrame.select("start_time","from_station_name","trip_id")\
@@ -94,7 +94,6 @@ def stationPopularityByMonth(dataFrame):
 def stationPopularityByDay(dataFrame):
 
     # creates a dummy column and assigns a literal/constant value to it; 
-    # I am using it to filter over the 14 day benchmark; 
     w = Window().orderBy(F.lit(1)); 
     # window to partition total trips by start_time 
     # I am using dense_rank because rank will skip positios after any equal rankings; 
@@ -161,7 +160,7 @@ def main():
     #ENDS QUARTER 19 DIVVY TRIP INFO; 
 
     # Quarter 20 contents; 
-    
+
 
 if __name__ == "__main__":
     main()
