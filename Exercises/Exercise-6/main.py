@@ -1,10 +1,10 @@
-from pyspark.sql import SparkSession;
-from pyspark.sql.window import Window;
-from pyspark.sql import functions as F;
-from pyspark.sql import types as T;
-import pandas as pd; 
-import zipfile; 
-import os; 
+from pyspark.sql import SparkSession; # to initialize spark session; 
+from pyspark.sql.window import Window; # to use pyspark sql window functionalities; 
+from pyspark.sql import functions as F; # importing sparks built in functions; 
+from pyspark.sql import types as T; # importing types to handles data types; 
+import pandas as pd; # using pandas to concatentate csv 
+import zipfile; # for reading zipfile contents
+import os; # for operating system functionalities; 
 
 # creates the sparksession instance; 
 spark = SparkSession.builder.appName("Exercise6") \
@@ -104,7 +104,8 @@ def stationPopularityByDay(dataFrame,dateCol, stationCol, tripIdCol):
     w = Window().partitionBy(dateCol).orderBy(F.desc("total_trips"))
 
     # capturing the max date and using the date_sub function to return the date 14 days prior; 
-    max_date = dataFrame.select(F.date_sub(F.to_date(F.max(dateCol)),14).alias("max_date"))\
+    max_date = dataFrame.select(F.date_sub(F.to_date(F.max(dateCol)),14)\
+                    .alias("max_date"))\
                         .collect()[0]["max_date"]
 
     dataFrame = dataFrame.select(dateCol,stationCol,tripIdCol)\
@@ -125,9 +126,10 @@ def averageTripDurationByGender(dataFrame):
     w = Window().partitionBy("gender").orderBy("tripduration")
 
     dataFrame = dataFrame.select("gender","tripduration")\
-            .groupBy("gender")\
-                .agg(F.round(F.mean("tripduration") / 60,2).alias("avg_trip_time_in_minutes"))\
-                        .replace("NaN", None).dropna()
+                    .groupBy("gender")\
+                        .agg(F.round(F.mean("tripduration") / 60,2)\
+                            .alias("avg_trip_time_in_minutes"))\
+                                .replace("NaN", None).dropna()
     return dataFrame
 
 # What are the top 10 ages of those that take the longest trips, and shortest?            
@@ -138,45 +140,68 @@ def longestShortestTripByAge(dataFrame):
                         .withColumn("birthyear", dataFrame["birthyear"].cast(T.IntegerType()))\
                             .withColumn("current_year", F.year(F.current_date()).cast(T.IntegerType()))\
                                 .withColumn("age_group", F.col("current_year")-F.col("birthyear"))\
-                                    .groupby("age_group").agg(F.round(F.mean("tripduration") / 60,2).alias("avg_trip_time_in_minutes"))\
-                                        .sort(F.desc("avg_trip_time_in_minutes"))\
-                                            .withColumn("rank", F.monotonically_increasing_id()+1)
+                                    .groupby("age_group")\
+                                        .agg(F.round(F.mean("tripduration") / 60,2).alias("avg_trip_time_in_minutes"))\
+                                            .sort(F.desc("avg_trip_time_in_minutes"))\
+                                                .withColumn("rank", F.monotonically_increasing_id()+1)
 
     # Top 10 longest trips by age; 
-    longest = dataFrame.where(F.col("rank") <= 10)
+    longest = dataFrame\
+                .where(F.col("rank") <= 10)
+
+
     # Top 10 shortest trips by age; 
-    shortest = dataFrame.filter(F.col("rank") > dataFrame.count() - 10).sort(F.desc("rank"))
+    shortest = dataFrame\
+                .where(F.col("rank") > dataFrame.count() - 10)\
+                    .sort(F.desc("rank"))\
+                        .withColumn("rank", F.monotonically_increasing_id()+1)
+
+                
 
     return  longest, shortest
 
 # ENDS TRANSFORM PHASE; 
 
+# BEGINS LOAD PHASE
+# Method to write out each dataframe to a csv files, parameters are the year and report name; 
+# since pyspark writes out dataframes in parts, I am using coalesce to make sure that the data is written out 
+# in only one part; 
+# Note: the option below will overwrite any report directories are that are there; 
+def writeToCSV(dataFrame,reportYear,reportName):
+
+    dataFrame.coalesce(1).write.format("csv").mode("overwrite")\
+        .option("header","true")\
+        .save("reports/"+reportYear+"/"+reportName)
+
+# ENDS LOAD PHASE
+
 def main():    
 
     # # Quarter 19 contents; 
     quarter19DataFrame = create_frame(readZipContents(1,0));
+    
+    writeToCSV(averageTripsAndTotalTrips(quarter19DataFrame, "start_time","end_time","trip_id"),"2019","Avg-Trip-length-And-Total-Trips");
 
-    q19AverageTotalTripsDf = averageTripsAndTotalTrips(quarter19DataFrame, "start_time","end_time","trip_id");
+    writeToCSV(stationPopularityByMonth(quarter19DataFrame,"start_time", "from_station_name","trip_id"), "2019","Monthly-Popularity");
 
-    q19MonthlyPopularityDf = stationPopularityByMonth(quarter19DataFrame,"start_time", "from_station_name","trip_id");
+    writeToCSV(stationPopularityByDay(quarter19DataFrame,"start_time", "from_station_name", "trip_id"),"2019", "Daily-Popularity");
 
-    dailyPopularity19 = stationPopularityByDay(quarter19DataFrame,"start_time", "from_station_name", "trip_id");
+    writeToCSV(averageTripDurationByGender(quarter19DataFrame),"2019", "Avg-Trip-By-Gender");
 
-    tripDurationByGender = averageTripDurationByGender(quarter19DataFrame);
+    writeToCSV(longestShortestTripByAge(quarter19DataFrame)[0], "2019", "Longest-Trips-By-Age")
 
-    longestTrips, shortestTrips= longestShortestTripByAge(quarter19DataFrame);
+    writeToCSV(longestShortestTripByAge(quarter19DataFrame)[1], "2019", "Shortest-Trips-By-Age")
+
     # #ENDS QUARTER 19 DIVVY TRIP INFO; 
 
     # # Quarter 20 contents; 
     quarter20DataFrame = create_frame(readZipContents(0,0))
 
-    q20AverageTotalTripsDf = averageTripsAndTotalTrips(quarter20DataFrame, "started_at","ended_at","ride_id");
+    writeToCSV(averageTripsAndTotalTrips(quarter20DataFrame, "started_at","ended_at","ride_id"),"2020","Avg-Trip-length-And-Total-Trips");
 
-    q20MonthlyPopularityDf = stationPopularityByMonth(quarter20DataFrame, "started_at", "start_station_name", "ride_id");
+    writeToCSV(stationPopularityByMonth(quarter20DataFrame, "started_at", "start_station_name", "ride_id"), "2020","Monthly-Popularity");
 
-    q20DailyPopularityDf = stationPopularityByDay(quarter20DataFrame, "started_at", "start_station_name", "ride_id");
-
-    q20DailyPopularityDf.show();
+    writeToCSV(stationPopularityByDay(quarter20DataFrame, "started_at", "start_station_name", "ride_id"),"2020", "Daily-Popularity");
     #ENDS QUARTER 20 DIVVY TRIP INFO; 
 
 
