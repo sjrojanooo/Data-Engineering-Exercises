@@ -1,4 +1,4 @@
-import requests; 
+import requests; # request package to handle http request to target url; 
 from bs4 import BeautifulSoup # importing beautiful soup package html parser; 
 from io import BytesIO; # enables the use to stream data in memory; 
 from zipfile import ZipFile; # Zipfile package 
