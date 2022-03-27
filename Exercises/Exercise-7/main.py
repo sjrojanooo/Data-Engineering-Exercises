@@ -1,9 +1,9 @@
 import requests; 
 from bs4 import BeautifulSoup # importing beautiful soup package html parser; 
-from io import BytesIO, StringIO; 
-from zipfile import ZipFile;
-from datetime import datetime; 
-from concurrent.futures import ProcessPoolExecutor; 
+from io import BytesIO; # enables the use to stream data in memory; 
+from zipfile import ZipFile; # Zipfile package 
+from datetime import datetime; # importing datetime, used to time the time needed to process the program; 
+from concurrent.futures import ProcessPoolExecutor; # will be implementing this soon; 
 
 # target url; 
 baseURL = "https://grouplens.org/datasets/movielens/"
